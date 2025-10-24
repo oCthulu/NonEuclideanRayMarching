@@ -1,0 +1,24 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.5.2.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GpuHlslRayMarchingTest", "GpuHlslRayMarchingTest.csproj", "{9F6CEA90-A199-12C5-41B7-9ECE79059810}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{9F6CEA90-A199-12C5-41B7-9ECE79059810}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9F6CEA90-A199-12C5-41B7-9ECE79059810}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9F6CEA90-A199-12C5-41B7-9ECE79059810}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9F6CEA90-A199-12C5-41B7-9ECE79059810}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {33B53E2D-50AA-4BE1-B3B0-43D8286C9281}
+	EndGlobalSection
+EndGlobal
