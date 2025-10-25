@@ -10,9 +10,19 @@ using SharpDX.Direct3D;
 using Color = SharpDX.Color;
 
 public class Scene : IDisposable{
-    public bool enabled;
+    public bool Enabled {get => enabled; set { 
+        enabled = value; 
+        if (enabled) OnEnabled?.Invoke(); else OnDisabled?.Invoke();
+        OnEnableChanged?.Invoke();
+    }}
     public event Action<ConstantBufferWriter>? writeSceneConstants = null;
     public event Action<ConstantBufferWriter>? writeRenderConstants = null;
+
+    public event Action? OnEnableChanged;
+    public event Action? OnEnabled;
+    public event Action? OnDisabled;
+
+    bool enabled;
 
     Device device;
     ComputeShader shader;

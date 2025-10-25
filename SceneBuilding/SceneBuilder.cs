@@ -11,6 +11,10 @@ public abstract class Expression<T> {
     public abstract string BuildSource(SourceBuilder sb);
 
     public static implicit operator Expression<T>(T value) => new LiteralExpression<T>(value);
+
+    public virtual Expression<TTo> Apply<TTo>(Func<T, TTo> func) where TTo : unmanaged {
+        throw new NotImplementedException($"Apply not valid for {GetType().Name}.");
+    }
 }
 
 public class LiteralExpression<T> : Expression<T> {
@@ -22,6 +26,37 @@ public class LiteralExpression<T> : Expression<T> {
 
     public override string BuildSource(SourceBuilder sb){
         return sb.scene.GetTypeDescription<T>().BuildSource(value, sb);
+    }
+
+    public override Expression<TTo> Apply<TTo>(Func<T, TTo> func) 
+    {
+        return new LiteralExpression<TTo>(func(value));
+    }
+}
+
+public class FunctionExpression<T> : Expression<T> where T : unmanaged {
+    Func<T> func;
+    string varName;
+    SceneBuilder sceneBuilder;
+
+    public FunctionExpression(Func<T> func, SceneBuilder sceneBuilder){
+        this.func = func;
+        this.sceneBuilder = sceneBuilder;
+
+        varName = $"expr{Guid.NewGuid():N}";
+
+        sceneBuilder.DefineParameter<T>(varName);
+
+        sceneBuilder.onCbufferWrite += (cbw) => cbw.Write(varName, func());
+    }
+
+    public override string BuildSource(SourceBuilder sb){
+        return varName;
+    }
+
+    public override Expression<TTo> Apply<TTo>(Func<T, TTo> func)
+    {
+        return new FunctionExpression<TTo>(() => func(this.func()), sceneBuilder);
     }
 }
 
@@ -40,60 +75,112 @@ public class CodeExpression<T> : Expression<T> {
 }
 
 public class SourceBuilder{
-    public class SubBuilder{
-        public readonly StringBuilder source = new();
-        HashSet<object> marks = new();
+    // public class SubBuilder{
+    //     public readonly StringBuilder source = new();
+    //     HashSet<object> marks = new();
 
-        public void Append(StringBuilder sb){
-            source.Append(sb);
-        }
-        public void Append(string str){
-            source.Append(str);
-        }
-        public void AppendLine(){
-            source.AppendLine();
-        }
-        public void AppendLine(StringBuilder sb){
-            Append(sb);
-            AppendLine();
-        }
-        public void AppendLine(string str){
-            Append(str);
-            AppendLine();
-        }
+    //     public void Append(StringBuilder sb){
+    //         source.Append(sb);
+    //     }
+    //     public void Append(string str){
+    //         source.Append(str);
+    //     }
+    //     public void AppendLine(){
+    //         source.AppendLine();
+    //     }
+    //     public void AppendLine(StringBuilder sb){
+    //         Append(sb);
+    //         AppendLine();
+    //     }
+    //     public void AppendLine(string str){
+    //         Append(str);
+    //         AppendLine();
+    //     }
 
-        public void Mark(object obj){
-            marks.Add(obj);
-        }
-        public bool HasMark(object obj){
-            return marks.Contains(obj);
-        }
-        public bool HasMarkAndMark(object obj){
-            bool has = HasMark(obj);
-            if(!has) Mark(obj);
-            return has;
-        }
+    //     public void Mark(object obj){
+    //         marks.Add(obj);
+    //     }
+    //     public bool HasMark(object obj){
+    //         return marks.Contains(obj);
+    //     }
+    //     public bool HasMarkAndMark(object obj){
+    //         bool has = HasMark(obj);
+    //         if(!has) Mark(obj);
+    //         return has;
+    //     }
 
-        public void Mark<T>(){
-            Mark(typeof(T));
-        }
-        public bool HasMark<T>(){
-            return HasMark(typeof(T));
-        }
-        public bool HasMarkAndMark<T>(){
-            return HasMarkAndMark(typeof(T));
-        }
-    }
+    //     public void Mark<T>(){
+    //         Mark(typeof(T));
+    //     }
+    //     public bool HasMark<T>(){
+    //         return HasMark(typeof(T));
+    //     }
+    //     public bool HasMarkAndMark<T>(){
+    //         return HasMarkAndMark(typeof(T));
+    //     }
+    // }
 
     public readonly SceneBuilder scene;
 
-    public SubBuilder global = new();
-    public SubBuilder cbuffer = new();
-    public SubBuilder? function;
-    public SubBuilder? local;
+    // public SubBuilder global = new();
+    // public SubBuilder cbuffer = new();
+    // public SubBuilder? function;
+    // public SubBuilder? local;
 
     public SourceBuilder(SceneBuilder scene){
         this.scene = scene;
+    }
+
+    public SourceBuilder(SourceBuilder other){
+        scene = other.scene;
+    }
+
+    public readonly StringBuilder source = new();
+    HashSet<object> marks = new();
+
+    public void Append(StringBuilder sb){
+        source.Append(sb);
+    }
+    public void Append(string str){
+        source.Append(str);
+    }
+    public void AppendLine(){
+        source.AppendLine();
+    }
+    public void AppendLine(StringBuilder sb){
+        Append(sb);
+        AppendLine();
+    }
+    public void AppendLine(string str){
+        Append(str);
+        AppendLine();
+    }
+}
+
+public class MarkedSourceBuilder : SourceBuilder{
+    HashSet<object> marks = new();
+
+    public MarkedSourceBuilder(SourceBuilder other) : base(other){
+    }
+
+    public void Mark(object obj){
+        marks.Add(obj);
+    }
+    public bool HasMark(object obj){
+        return marks.Contains(obj);
+    }
+    public void MarkAndAppend(object obj, StringBuilder sb){
+        if(!HasMark(obj)){
+            Mark(obj);
+            Append(sb);
+        }
+    }
+
+    public void MarkAndAppend(object obj, string str){
+        if(!HasMark(obj)){
+            Mark(obj);
+            Append(str);
+        }
     }
 }
 
@@ -114,40 +201,108 @@ public abstract class ObjectBuilder{
     }
 }
 
-public abstract class FunctionObjectBuilder<T> : ObjectBuilder{
-    protected string? sdfVariableName;
-    protected string? hitVariableName;
+public abstract class TransformingObjectBuilder : ObjectBuilder{
+    protected ObjectBuilder child;
 
-    public static void Require<TReq>(SourceBuilder sb) where TReq : FunctionObjectBuilder<T>, new(){
-        if(!sb.global.HasMarkAndMark<TReq>()){
-            var obj = new TReq();
-            obj.BuildFunctions(sb);
-        }
+    public TransformingObjectBuilder(ObjectBuilder child){
+        this.child = child;
     }
+
+    public override void Prepare(SourceBuilder sb){
+        base.Prepare(sb);
+        child.Prepare(sb);
+    }
+
+    public override void FinalizeBuild(){
+        base.FinalizeBuild();
+        child.FinalizeBuild();
+    }
+
+    protected abstract void TransformInput(string inputVar, SourceBuilder sb);
+    protected abstract void TransformOutputSdf(string outputVar, SourceBuilder sb);
+    protected abstract void TransformOutputHit(string outputVar, SourceBuilder sb);
 
     public override string BuildSdfSource(SourceBuilder sb)
     {
-        if(!sb.global.HasMarkAndMark<T>()){
-            BuildFunctions(sb);
-        }
-        return GetSdfExpression(sb);
-    }
-    public override string BuildHitSource(SourceBuilder sb)
-    {
-        if(!sb.global.HasMarkAndMark<T>()){
-            BuildFunctions(sb);
-        }
-        return GetHitExpression(sb);
+        //backup the current position and apply the inverse transform
+        string varName = $"localPos{Guid.NewGuid():N}";
+        string exprName = $"localSdf{Guid.NewGuid():N}";
+
+        sb.AppendLine($"Pos {varName} = p;");
+
+        TransformInput("p", sb);
+
+        SourceBuilder local = new SourceBuilder(sb);
+        string sdfExpr = child.BuildSdfSource(local);
+        sb.AppendLine(local.source);
+        sb.AppendLine($"float {exprName} = {sdfExpr};");
+
+        TransformOutputSdf(exprName, sb);
+
+        sb.AppendLine($"p = {varName};"); //restore the original position
+
+        return $"({exprName})";
     }
 
-    public abstract void BuildFunctions(SourceBuilder sb);
-    public abstract string GetSdfExpression(SourceBuilder sb);
-    public abstract string GetHitExpression(SourceBuilder sb);
+    public override string BuildHitSource(SourceBuilder sb)
+    {
+        //backup the current position and apply the inverse transform
+        string varName = $"localPos{Guid.NewGuid():N}";
+        string exprName = $"localHit{Guid.NewGuid():N}";
+
+        sb.AppendLine($"Pos {varName} = p;");
+
+        TransformInput("p", sb);
+
+        SourceBuilder local = new SourceBuilder(sb);
+        string hitExpr = child.BuildHitSource(local);
+        sb.AppendLine(local.source);
+        sb.AppendLine($"HitResult {exprName} = {hitExpr};");
+
+        TransformOutputHit(exprName, sb);
+
+        sb.AppendLine($"p = {varName};"); //restore the original position
+
+        return $"({exprName})";
+    }
 }
+
+// public abstract class FunctionObjectBuilder<T> : ObjectBuilder{
+//     protected string? sdfVariableName;
+//     protected string? hitVariableName;
+
+//     public static void Require<TReq>(SourceBuilder sb) where TReq : FunctionObjectBuilder<T>, new(){
+//         if(!sb.global.HasMarkAndMark<TReq>()){
+//             var obj = new TReq();
+//             obj.BuildFunctions(sb);
+//         }
+//     }
+
+//     public override string BuildSdfSource(SourceBuilder sb)
+//     {
+//         if(!sb.global.HasMarkAndMark<T>()){
+//             BuildFunctions(sb);
+//         }
+//         return GetSdfExpression(sb);
+//     }
+//     public override string BuildHitSource(SourceBuilder sb)
+//     {
+//         if(!sb.global.HasMarkAndMark<T>()){
+//             BuildFunctions(sb);
+//         }
+//         return GetHitExpression(sb);
+//     }
+
+//     public abstract void BuildFunctions(SourceBuilder sb);
+//     public abstract string GetSdfExpression(SourceBuilder sb);
+//     public abstract string GetHitExpression(SourceBuilder sb);
+// }
 
 public class SceneBuilder{
     readonly Dictionary<Type, TypeDescriptor> typeDescriptions = [];
-    readonly SourceBuilder sb;
+    readonly SourceBuilder main;
+    public readonly MarkedSourceBuilder global;
+    public readonly MarkedSourceBuilder cbuffer;
 
     readonly string spaceFile;
     readonly string rendererFile;
@@ -156,10 +311,13 @@ public class SceneBuilder{
 
     public ObjectBuilder? root;
 
-    Action<ConstantBufferWriter>? onCbufferWrite;
+    public Action<ConstantBufferWriter>? onCbufferWrite;
 
     public SceneBuilder(string spaceFile = "Spaces/Euclidean.hlsl", string rendererFile = "Renderers/EuclideanLit.hlsl"){
-        sb = new SourceBuilder(this);
+        main = new SourceBuilder(this);
+        global = new MarkedSourceBuilder(main);
+        cbuffer = new MarkedSourceBuilder(main);
+
         this.spaceFile = spaceFile;
         this.rendererFile = rendererFile;
 
@@ -181,83 +339,78 @@ public class SceneBuilder{
         throw new ArgumentException($"No type description registered for type {typeof(T)}");
     }
 
-    public Expression<T> DefineParameter<T>(string name){
-        if(!sb.cbuffer.HasMark(name)){
-            sb.cbuffer.Mark(name);
+    public void DefineParameter<T>(string name){
+        if(!cbuffer.HasMark(name)){
+            cbuffer.Mark(name);
             var typeDesc = GetTypeDescription<T>();
-            sb.cbuffer.AppendLine($"    {typeDesc.GetTypeName()} {name};");
+            cbuffer.AppendLine($"    {typeDesc.GetTypeName()} {name};");
         }
-        return new CodeExpression<T>(name);
     }
 
     public Expression<T> Expr<T>(Func<T> func) where T : unmanaged{
-        string name = $"expr{Guid.NewGuid():N}";
-        var expr = DefineParameter<T>(name);
-        onCbufferWrite += (cbw) => cbw.Write(name, func());
-        return expr;
+        return new FunctionExpression<T>(func, this);
     }
 
-    public Expression<T> DefineCameraTransform<T>(string name){
+    public void DefineCameraTransform<T>(string name){
         if(camTransformName != null) throw new InvalidOperationException("Camera transform already defined.");
         camTransformName = name;
-        return DefineParameter<T>(name);
+        DefineParameter<T>(name);
     }
 
     public string BuildSource(){
         if(root == null) throw new InvalidOperationException("No root object defined.");
 
-        root.Prepare(sb);
+        root.Prepare(main);
         
-        SourceBuilder.SubBuilder sdfBuilder = new();
-        SourceBuilder.SubBuilder hitBuilder = new();
 
         //TODO: perhaps have a stack to handle nested local builders?
-        sb.function = sdfBuilder;
-        sb.local = sb.function;
-        sb.function.Append($"return {root.BuildSdfSource(sb)};");
+        SourceBuilder sdf = new SourceBuilder(main);
+        SourceBuilder hit = new SourceBuilder(main);
 
-        sb.function = hitBuilder;
-        sb.local = sb.function;
-        sb.function.Append($"return {root.BuildHitSource(sb)};");
+        string sdfSource = root.BuildSdfSource(sdf);
+        string hitSource = root.BuildHitSource(hit);
 
-        StringBuilder final = new();
-        final.AppendLine($"#include \"{spaceFile}\"");
-        if(sb.cbuffer.source.Length > 0){
-            final.AppendLine("cbuffer SceneParams : register(b0){");
-            final.Append(sb.cbuffer.source);
-            final.AppendLine("}");
+        main.AppendLine($"#include \"{spaceFile}\"");
+        if(cbuffer.source.Length > 0){
+            main.AppendLine("cbuffer SceneParams : register(b0){");
+            main.Append(cbuffer.source);
+            main.AppendLine("}");
         }
-        final.AppendLine();
+        main.AppendLine();
 
-        final.Append(sb.global.source);
-        final.AppendLine();
+        main.Append(global.source);
+        main.AppendLine();
 
-        final.AppendLine($"float GetDistance(Pos p){{");
-        final.Append(sdfBuilder.source);
-        final.AppendLine("}");
-        final.AppendLine();
+        main.AppendLine("float GetDistance(Pos p){");
+        main.Append(sdf.source);
+        main.Append($"return {sdfSource};");
+        main.AppendLine("}");
 
-        final.AppendLine($"HitResult GetHit(Pos p){{");
-        final.Append(hitBuilder.source);
-        final.AppendLine("}");
-        final.AppendLine();
+        main.AppendLine();
+
+        main.AppendLine("HitResult GetHit(Pos p){");
+        main.Append(hit.source);
+        main.Append($"return {hitSource};");
+        main.AppendLine("}");
+        main.AppendLine();
 
         if(camTransformName == null) throw new InvalidOperationException("Camera transform not defined.");
+        main.AppendLine(
+            $$"""
+            Transform GetTransform()
+            {
+                return {{camTransformName}};
+            }
+            """
+        );
 
-        final.AppendLine($$"""
-Transform GetTransform()
-{
-    return {{camTransformName}};
-}
-""");
-
-        final.AppendLine($"#include \"RayMarchingCore.hlsl\"");
-        final.AppendLine($"#include \"{rendererFile}\"");
-        final.AppendLine($"#include \"RayMarchingMain.hlsl\"");
+        main.AppendLine($"#include \"RayMarchingCore.hlsl\"");
+        main.AppendLine($"#include \"{rendererFile}\"");
+        main.AppendLine($"#include \"RayMarchingMain.hlsl\"");
 
         root.FinalizeBuild();
 
-        return final.ToString();
+        return main.source.ToString();
     }
 
     public Scene Build(Device device, Include? includeHandler = null, string entryPoint = "CSMain", string profile = "cs_5_0"){

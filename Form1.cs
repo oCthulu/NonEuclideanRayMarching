@@ -28,16 +28,24 @@ namespace GpuHlslRayMarchingTest
 
         //float startTime = Environment.TickCount / 1000.0f;
         int startTimeMillis = Environment.TickCount;
-        float time;
+
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        public float Time {get; private set;} = 0;
+
+
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        public float DeltaTime => Time - prevTime;
+
+        float prevTime;
 
         List<Scene> scenes = new();
         int currentSceneIndex = 0;
         int CurrentSceneIndex {
             get => currentSceneIndex;
             set {
-                Current.enabled = false;
+                Current.Enabled = false;
                 currentSceneIndex = value;
-                Current.enabled = true;
+                Current.Enabled = true;
             }
         }
 
@@ -78,7 +86,7 @@ namespace GpuHlslRayMarchingTest
                 SceneBuilder sb = new();
                 var root = new SmoothUnion(0.5f,
                     new Sphere(1.0f, new Vector3(0, 0, 0), new Vector4(1,0,0,1)),
-                    new Sphere(0.5f, sb.Expr(() => new Vector3(0, 0, 2f * MathF.Sin(time))), new Vector4(0,1,0,1))
+                    new Sphere(0.5f, sb.Expr(() => new Vector3(0, 0, 2f * MathF.Sin(Time))), new Vector4(0,1,0,1))
                 );
 
                 sb.root = root;
@@ -92,7 +100,7 @@ namespace GpuHlslRayMarchingTest
                 SceneBuilder sb = new();
                 var root = new Intersection(
                     new Sphere(1.0f, new Vector3(0, 0, 0), new Vector4(1,0,0,1)),
-                    new Sphere(1.5f, sb.Expr(() => new Vector3(0, 0, 2f * MathF.Sin(time))), new Vector4(1,0,0,1))
+                    new Sphere(1.5f, sb.Expr(() => new Vector3(0, 0, 2f * MathF.Sin(Time))), new Vector4(1,0,0,1))
                 );
 
                 sb.root = root;
@@ -110,9 +118,9 @@ namespace GpuHlslRayMarchingTest
                     new Invert(
                         new SmoothUnion(0.5f,
                             new Sphere(1f, new Vector3(0, 0, 0), new Vector4(1,1,1,1)),
-                            new Sphere(0.7f, sb.Expr(() => 3f * MathF.Sin(time) * new Vector3(0, 0, 1)), new Vector4(1,1,1,1)),
-                            new Sphere(0.7f, sb.Expr(() => (1.5f * MathF.Sin(time/4) - 1.5f) * new Vector3(0, 1, 0)), new Vector4(1,1,1,1)),
-                            new Sphere(0.7f, sb.Expr(() => 3f * MathF.Sin(time/2) * new Vector3(1, 0, 0)), new Vector4(1,1,1,1))
+                            new Sphere(0.7f, sb.Expr(() => 3f * MathF.Sin(Time) * new Vector3(0, 0, 1)), new Vector4(1,1,1,1)),
+                            new Sphere(0.7f, sb.Expr(() => (1.5f * MathF.Sin(Time/4) - 1.5f) * new Vector3(0, 1, 0)), new Vector4(1,1,1,1)),
+                            new Sphere(0.7f, sb.Expr(() => 3f * MathF.Sin(Time/2) * new Vector3(1, 0, 0)), new Vector4(1,1,1,1))
                         )
                     )
                 );
@@ -125,20 +133,124 @@ namespace GpuHlslRayMarchingTest
                 scenes.Add(scene);
             }
 
+
             {
-                SceneBuilder sb = new("Spaces/Hyperbolic.hlsl", "Renderers/HyperbolicUnlit.hlsl");
+                SceneBuilder sb = new("Spaces/Hyperbolic.hlsl", "Renderers/HyperbolicLit.hlsl");
                 var root = new Union(
-                    new SphereH(1.0f, HyperUtil.ToHyperbolic(new Vector3(0, 0, 2)), new Vector4(1,0,0,1)),
-                    new SphereH(1.0f, HyperUtil.ToHyperbolic(new Vector3(1, 0, 3)), new Vector4(1,0,0,1))
+                    new SphereH(0.1f, HyperUtil.ToHyperbolic(new Vector3(0, 0, 0)), new Vector4(1,0,0,1)),
+                    new SphereH(0.1f, HyperUtil.TranslationX(1).Column4, new Vector4(1,0,0,1)),
+                    new Intersection(
+                        new PlaneH(new Vector4(0,1,0,0), 0, new Vector4(1,1,1,1)),
+                        new SphereH(2f, HyperUtil.Origin, new Vector4(1, 1, 1, 1))
+                    )
                 );
 
                 sb.root = root;
                 sb.DefineCameraTransform<Matrix>("camTransform");
 
                 Scene scene = sb.Build(device, includeHandler);
-                scene.writeSceneConstants += writer => {
-                    writer.Write("camTransform", Matrix.Identity);
-                };
+                new OrbitCameraH(scene);
+                scenes.Add(scene);
+            }
+            {
+                SceneBuilder sb = new("Spaces/Hyperbolic.hlsl", "Renderers/HyperbolicLit.hlsl");
+                var root = new Union(
+                    HyperUtil.Tiling(
+                        4,
+                        5,
+                        1,
+                        () => new SphereH(0.2f, HyperUtil.TranslationY(0.2f).Column4, new Vector4(1,0,0,1))
+                    ),
+                    new PlaneH(new Vector4(0, 1, 0, 0), 0, new Vector4(1, 1, 1, 1))
+                );
+
+                sb.root = root;
+                sb.DefineCameraTransform<Matrix>("camTransform");
+
+                Scene scene = sb.Build(device, includeHandler);
+                new FirstPersonCameraH(scene, 1, 0.5f);
+                scenes.Add(scene);
+            }
+            {
+                SceneBuilder sb = new("Spaces/Hyperbolic.hlsl", "Renderers/HyperbolicLit.hlsl");
+                
+                Random rand = new();
+
+                var root = new Union(
+                    new MixMatch(
+                        new PlaneH(new Vector4(0, 1, 0, 0), 0, new Vector4()),
+                        new Union(
+                            HyperUtil.Tiling(
+                                5,
+                                4,
+                                2,
+                                0.1f,
+                                0.05f,
+                                new Vector4(1, 1, 1, 1)//,
+                                // () => new SphereH(0.2f, HyperUtil.TranslationY(0.2f).Column4, new Vector4(
+                                //     Vector3.Normalize(new Vector3(
+                                //         (float)rand.NextDouble(),
+                                //         (float)rand.NextDouble(),
+                                //         (float)rand.NextDouble()
+                                //     )),
+                                //     1
+                                // ))
+                            ),
+                            new ConstantH(
+                                0.001f,
+                                new Vector4(0.5f, 0.5f, 0.5f, 1),
+                                new Vector4(0, 1, 0, 0)
+                            )
+                        )
+                    )
+                );
+
+                sb.root = root;
+                sb.DefineCameraTransform<Matrix>("camTransform");
+
+                Scene scene = sb.Build(device, includeHandler);
+                new FirstPersonCameraH(scene, 1, 0.5f);
+                scenes.Add(scene);
+            }
+            {
+                SceneBuilder sb = new("Spaces/Hyperbolic.hlsl", "Renderers/HyperbolicLit.hlsl");
+                
+                Random rand = new();
+
+                var root = new Union(
+                    new MixMatch(
+                        new PlaneH(new Vector4(0, 1, 0, 0), 0, new Vector4()),
+                        new Union(
+                            HyperUtil.Tiling(
+                                4,
+                                5,
+                                2,
+                                0.1f,
+                                0.05f,
+                                new Vector4(1, 1, 1, 1)//,
+                                // () => new SphereH(0.2f, HyperUtil.TranslationY(0.2f).Column4, new Vector4(
+                                //     Vector3.Normalize(new Vector3(
+                                //         (float)rand.NextDouble(),
+                                //         (float)rand.NextDouble(),
+                                //         (float)rand.NextDouble()
+                                //     )),
+                                //     1
+                                // ))
+                            ),
+                            new ConstantH(
+                                0.001f,
+                                new Vector4(0.5f, 0.5f, 0.5f, 1),
+                                new Vector4(0, 1, 0, 0)
+                            )
+                        )
+                    )
+                );
+
+                sb.root = root;
+                sb.DefineCameraTransform<Matrix>("camTransform");
+
+                Scene scene = sb.Build(device, includeHandler);
+                new FirstPersonCameraH(scene, 1, 0.5f);
                 scenes.Add(scene);
             }
 
@@ -183,7 +295,7 @@ namespace GpuHlslRayMarchingTest
             if (backBufferUAV?.IsDisposed != false)
                 return;
 
-            time = (Environment.TickCount - startTimeMillis) / 1000.0f;
+            Time = (Environment.TickCount - startTimeMillis) / 1000.0f;
 
             OnRender?.Invoke();
 
@@ -198,6 +310,8 @@ namespace GpuHlslRayMarchingTest
             );
 
             swapChain.Present(1, PresentFlags.None);
+
+            prevTime = Time;
         }
 
         protected override void OnResize(EventArgs e)
