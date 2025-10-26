@@ -261,8 +261,8 @@ namespace GpuHlslRayMarchingTest
                         new PlaneH(new Vector4(0, 1, 0, 0), 0, new Vector4()),
                         new Union(
                             HyperUtil.Tiling(
-                                4,
                                 5,
+                                4,
                                 2,
                                 0.1f,
                                 0.05f,
