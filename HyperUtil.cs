@@ -55,7 +55,7 @@ public static class HyperUtil{
         );
     }
 
-    public static ObjectBuilder NGonPrism(int sides, float sideDist, float thickness, Vector4 albedo)
+    public static ObjectBuilder NGonPrism(int sides, float sideDist, float thickness, Vector4 albedo, Matrix baseTransform)
     {
         var prism = new Intersection();
 
@@ -64,18 +64,25 @@ public static class HyperUtil{
             float ang = 2 * MathF.PI / sides * i;
 
             prism.Add(new TransformH(
-                TranslationZ(-sideDist) * Matrix.RotationY(ang),
+                TranslationZ(-sideDist) * Matrix.RotationY(ang) * baseTransform,
                 new PlaneH(new Vector4(0, 0, 1, 0), 0, albedo)
             ));
         }
 
-        prism.Add(new PlaneH(new Vector4(0, 1, 0, 0), 0, albedo));
-        prism.Add(new PlaneH(new Vector4(0, -1, 0, 0), 0.1f, albedo));
+        prism.Add(
+            new TransformH(
+                baseTransform,
+                new Intersection(
+                    new PlaneH(new Vector4(0, 1, 0, 0), 0, albedo),
+                    new PlaneH(new Vector4(0, -1, 0, 0), 0.1f, albedo)
+                )
+            )
+        );
 
         return prism;
     }
 
-    public static ObjectBuilder Tiling(int sides, int shapesPerVertex, int depth, Func<ObjectBuilder> newObj, float epsilon = 0.01f){
+    public static ObjectBuilder Tiling(int sides, int shapesPerVertex, int depth, Func<Matrix, ObjectBuilder> newObj, float epsilon = 0.01f){
         var group = new Union();
         float centralAngle = 2 * MathF.PI / sides;
         float interiorAngle = 2 * MathF.PI / shapesPerVertex;
@@ -91,7 +98,7 @@ public static class HyperUtil{
 
         transformsToProcess.Add(Matrix.Identity);
         foundPositions.Add(Origin);
-        group.Add(newObj());
+        group.Add(newObj(Matrix.Identity));
 
         for(int d = 0; d < depth; d++){
             List<Matrix> newTransforms = new();
@@ -118,7 +125,7 @@ public static class HyperUtil{
                     if(!alreadyExists){
                         foundPositions.Add(pos);
                         newTransforms.Add(newTransform);
-                        group.Add(new TransformH(newTransform, newObj()));
+                        group.Add(newObj(newTransform));
                     }
                 }
             }
@@ -139,11 +146,12 @@ public static class HyperUtil{
             MathF.PI / 2
         );
 
-        return Tiling(sides, shapesPerVertex, depth, () => NGonPrism(
+        return Tiling(sides, shapesPerVertex, depth, (baseTransform) => NGonPrism(
             sides,
             sideDist - padding,
             thickness,
-            albedo
+            albedo,
+            baseTransform
         ), epsilon);
     }
 

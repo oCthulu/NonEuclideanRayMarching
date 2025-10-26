@@ -55,7 +55,7 @@ public class OrbitCamera{
     {
         if (scene.Enabled)
         {
-            logCamDistance += e.Delta * 0.001f;
+            logCamDistance -= e.Delta * 0.001f;
         }
     }
 
@@ -146,8 +146,8 @@ public class FirstPersonCameraH{
             var deltaX = e.X - lastMousePosition.X;
             var deltaY = e.Y - lastMousePosition.Y;
 
-            pitch += deltaY * 0.01f; 
-            baseTransform = Matrix.RotationY(deltaX * 0.01f) * baseTransform;
+            pitch += deltaY * 0.003f; 
+            baseTransform = Matrix.RotationY(deltaX * 0.003f) * baseTransform;
 
             // Reset cursor to center to prevent hitting screen edges
             var centerPoint = new System.Drawing.Point(Form1.Instance.Width / 2, Form1.Instance.Height / 2);

@@ -158,8 +158,11 @@ namespace GpuHlslRayMarchingTest
                     HyperUtil.Tiling(
                         4,
                         5,
-                        1,
-                        () => new SphereH(0.2f, HyperUtil.TranslationY(0.2f).Column4, new Vector4(1,0,0,1))
+                        2,
+                        (transform) => new TransformH(
+                            transform,
+                            new SphereH(0.2f, HyperUtil.TranslationY(0.2f).Column4, new Vector4(1, 0, 0, 1))
+                        )
                     ),
                     new PlaneH(new Vector4(0, 1, 0, 0), 0, new Vector4(1, 1, 1, 1))
                 );
