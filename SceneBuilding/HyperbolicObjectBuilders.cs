@@ -39,7 +39,7 @@ class SphereH : ObjectBuilder {
                 float coshDist = (-ldot(p, center));
                 float sinhDist = sqrt(coshDist * coshDist - 1.0);
                 //use sinh angle sum formula to subtract radius (hyperbolic sdfs return the sinh of the distance)
-                return coshDist * sinhCoshRadius.x + sinhDist * sinhCoshRadius.y;
+                return max(coshDist * sinhCoshRadius.x + sinhDist * sinhCoshRadius.y, -10);
             }
             """);
         return $"SphereHSdf(p, {center.BuildSource(sb)}, {sinhCoshRadius.BuildSource(sb)})";

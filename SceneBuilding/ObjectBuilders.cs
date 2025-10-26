@@ -21,8 +21,9 @@ public class Union : ObjectBuilder{
         sb.scene.global.MarkAndAppend("UnionSdf","""
             float UnionSdf(float d1, float d2) { return min(d1, d2); }
             """);
+        return Util.AppendBinaryFunctionSequence<ObjectBuilder>(sb, "float", "UnionSdf", objects.ToArray(), o => o.BuildSdfSource(sb));
 
-        return Util.GetBinaryFunctionNest<ObjectBuilder>("UnionSdf", objects.ToArray(), o => o.BuildSdfSource(sb));
+        //return Util.GetBinaryFunctionNest<ObjectBuilder>("UnionSdf", objects.ToArray(), o => o.BuildSdfSource(sb));
     }
 
     public override string BuildHitSource(SourceBuilder sb)
@@ -40,8 +41,8 @@ public class Union : ObjectBuilder{
                 }
             }
             """);
-        
-        return Util.GetBinaryFunctionNest<ObjectBuilder>("UnionHit", objects.ToArray(), o => o.BuildHitSource(sb));
+
+        return Util.AppendBinaryFunctionSequence<ObjectBuilder>(sb, "HitResult", "UnionHit", objects.ToArray(), o => o.BuildHitSource(sb));
     }
 }
 
@@ -155,7 +156,7 @@ public class Intersection : ObjectBuilder{
             float IntersectionSdf(float d1, float d2) { return max(d1, d2); }
             """);
 
-        return Util.GetBinaryFunctionNest<ObjectBuilder>("IntersectionSdf", objects.ToArray(), o => o.BuildSdfSource(sb));
+        return Util.AppendBinaryFunctionSequence<ObjectBuilder>(sb, "float", "IntersectionSdf", objects.ToArray(), o => o.BuildSdfSource(sb));
     }
 
     public override string BuildHitSource(SourceBuilder sb)
@@ -174,7 +175,7 @@ public class Intersection : ObjectBuilder{
             }
             """);
 
-        return Util.GetBinaryFunctionNest<ObjectBuilder>("IntersectionHit", objects.ToArray(), o => o.BuildHitSource(sb));
+        return Util.AppendBinaryFunctionSequence<ObjectBuilder>(sb, "HitResult", "IntersectionHit", objects.ToArray(), o => o.BuildHitSource(sb));
     }
 }
 

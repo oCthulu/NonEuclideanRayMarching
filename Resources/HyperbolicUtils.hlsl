@@ -5,6 +5,12 @@ float ldot(float4 a, float4 b)
     return dot(a.xyz, b.xyz) - a.w * b.w;
 }
 
+float4 lnormalize(float4 v)
+{
+    float len2 = ldot(v, v);
+    return v / sqrt(abs(len2));
+}
+
 float acosh(float x)
 {
     return log(x + sqrt(x * x - 1));
@@ -31,5 +37,12 @@ float4 ParallelTransport(float4 v, float4 fromPos, float4 toPos)
 float4 DirectionTo(float4 fromPos, float4 toPos)
 {
     //project fromPos to the plane perpendicular to toPos
-    return toPos - dot(fromPos, toPos) * fromPos;
+    float4 projected = toPos + ldot(fromPos, toPos) * fromPos;
+    return projected / sqrt(ldot(projected, projected));
+}
+
+float3 GeodesicEndpoint(float4 startPos, float4 direction)
+{
+    float4 xi = startPos + direction;
+    return xi.xyz / xi.w;
 }

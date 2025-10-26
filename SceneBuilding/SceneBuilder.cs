@@ -151,9 +151,15 @@ public class SourceBuilder{
         Append(sb);
         AppendLine();
     }
-    public void AppendLine(string str){
+    public void AppendLine(string str)
+    {
         Append(str);
         AppendLine();
+    }
+
+    public string NewVariableName(string prefix = "var")
+    {
+        return $"{prefix}{Guid.NewGuid():N}";
     }
 }
 
@@ -232,10 +238,11 @@ public abstract class TransformingObjectBuilder : ObjectBuilder{
 
         TransformInput("p", sb);
 
-        SourceBuilder local = new SourceBuilder(sb);
-        string sdfExpr = child.BuildSdfSource(local);
-        sb.AppendLine(local.source);
-        sb.AppendLine($"float {exprName} = {sdfExpr};");
+        // SourceBuilder local = new SourceBuilder(sb);
+        // string sdfExpr = child.BuildSdfSource(local);
+        // sb.AppendLine(local.source);
+        //sb.AppendLine($"float {exprName} = {sdfExpr};");
+        sb.AppendLine($"float {exprName} = {child.BuildSdfSource(sb)};");
 
         TransformOutputSdf(exprName, sb);
 

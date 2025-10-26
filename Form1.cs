@@ -164,47 +164,9 @@ namespace GpuHlslRayMarchingTest
                             new SphereH(0.2f, HyperUtil.TranslationY(0.2f).Column4, new Vector4(1, 0, 0, 1))
                         )
                     ),
-                    new PlaneH(new Vector4(0, 1, 0, 0), 0, new Vector4(1, 1, 1, 1))
-                );
-
-                sb.root = root;
-                sb.DefineCameraTransform<Matrix>("camTransform");
-
-                Scene scene = sb.Build(device, includeHandler);
-                new FirstPersonCameraH(scene, 1, 0.5f);
-                scenes.Add(scene);
-            }
-            {
-                SceneBuilder sb = new("Spaces/Hyperbolic.hlsl", "Renderers/HyperbolicLit.hlsl");
-                
-                Random rand = new();
-
-                var root = new Union(
-                    new MixMatch(
-                        new PlaneH(new Vector4(0, 1, 0, 0), 0, new Vector4()),
-                        new Union(
-                            HyperUtil.Tiling(
-                                5,
-                                4,
-                                2,
-                                0.1f,
-                                0.05f,
-                                new Vector4(1, 1, 1, 1)//,
-                                // () => new SphereH(0.2f, HyperUtil.TranslationY(0.2f).Column4, new Vector4(
-                                //     Vector3.Normalize(new Vector3(
-                                //         (float)rand.NextDouble(),
-                                //         (float)rand.NextDouble(),
-                                //         (float)rand.NextDouble()
-                                //     )),
-                                //     1
-                                // ))
-                            ),
-                            new ConstantH(
-                                0.001f,
-                                new Vector4(0.5f, 0.5f, 0.5f, 1),
-                                new Vector4(0, 1, 0, 0)
-                            )
-                        )
+                    new Intersection(
+                        new PlaneH(new Vector4(0, 1, 0, 0), 0, new Vector4(1, 1, 1, 1)),
+                        new SphereH(3.2f, HyperUtil.Origin, new Vector4(1, 1, 1, 1))
                     )
                 );
 
@@ -217,10 +179,44 @@ namespace GpuHlslRayMarchingTest
             }
             {
                 SceneBuilder sb = new("Spaces/Hyperbolic.hlsl", "Renderers/HyperbolicLit.hlsl");
-                
-                Random rand = new();
+
+                int sides = 12;
+                float interiorAngle = MathF.PI / 2;
+                float vertDistPadding = 0.2f;
+                float sideDist = HyperUtil.HyperTriSideLength(
+                    interiorAngle / 2,
+                    MathF.PI / sides,
+                    MathF.PI / 2
+                );
+                float vertDist = HyperUtil.HyperTriSideLength(
+                    MathF.PI / 2,
+                    MathF.PI / sides,
+                    interiorAngle / 2
+                ) - vertDistPadding;
 
                 var root = new Union(
+                    HyperUtil.NGonPrism(
+                        sides,
+                        sideDist,
+                        0.3f,
+                        new Vector4(1, 1, 1, 1),
+                        Matrix.RotationY(MathF.PI / sides)
+                    ),
+                    new SphereH(0.1f, (HyperUtil.TranslationZ(vertDist) * HyperUtil.TranslationY(0.1f)).Column4, new Vector4(1, 0, 0, 1)),
+                    new SphereH(0.1f, (HyperUtil.TranslationZ(-vertDist) * HyperUtil.TranslationY(0.1f)).Column4, new Vector4(0, 0, 1, 1))
+                );
+
+                sb.root = root;
+                sb.DefineCameraTransform<Matrix>("camTransform");
+
+                Scene scene = sb.Build(device, includeHandler);
+                new FirstPersonCameraH(scene, 1, 0.5f);
+                scenes.Add(scene);
+            }
+            {
+                SceneBuilder sb = new("Spaces/Hyperbolic.hlsl", "Renderers/HyperbolicLit.hlsl");
+
+                var root = new Intersection(
                     new MixMatch(
                         new PlaneH(new Vector4(0, 1, 0, 0), 0, new Vector4()),
                         new Union(
@@ -246,7 +242,48 @@ namespace GpuHlslRayMarchingTest
                                 new Vector4(0, 1, 0, 0)
                             )
                         )
-                    )
+                    ),
+                    new SphereH(3.2f, HyperUtil.Origin, new Vector4(0.5f, 0.5f, 0.5f, 1))
+                );
+
+                sb.root = root;
+                sb.DefineCameraTransform<Matrix>("camTransform");
+
+                Scene scene = sb.Build(device, includeHandler);
+                new FirstPersonCameraH(scene, 1, 0.5f);
+                scenes.Add(scene);
+            }
+            {
+                SceneBuilder sb = new("Spaces/Hyperbolic.hlsl", "Renderers/HyperbolicLit.hlsl");
+
+                var root = new Intersection(
+                    new MixMatch(
+                        new PlaneH(new Vector4(0, 1, 0, 0), 0, new Vector4()),
+                        new Union(
+                            HyperUtil.Tiling(
+                                4,
+                                5,
+                                2,
+                                0.1f,
+                                0.05f,
+                                new Vector4(1, 1, 1, 1)//,
+                                // () => new SphereH(0.2f, HyperUtil.TranslationY(0.2f).Column4, new Vector4(
+                                //     Vector3.Normalize(new Vector3(
+                                //         (float)rand.NextDouble(),
+                                //         (float)rand.NextDouble(),
+                                //         (float)rand.NextDouble()
+                                //     )),
+                                //     1
+                                // ))
+                            ),
+                            new ConstantH(
+                                0.001f,
+                                new Vector4(0.5f, 0.5f, 0.5f, 1),
+                                new Vector4(0, 1, 0, 0)
+                            )
+                        )
+                    ),
+                    new SphereH(3.2f, HyperUtil.Origin, new Vector4(0.5f, 0.5f, 0.5f, 1))
                 );
 
                 sb.root = root;
