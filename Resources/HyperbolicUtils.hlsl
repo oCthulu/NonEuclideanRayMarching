@@ -15,6 +15,11 @@ float asinh(float x)
     return log(x + sqrt(x * x + 1));
 }
 
+float SinhToCosh(float sinhVal)
+{
+    return sqrt(1 + sinhVal * sinhVal);
+}
+
 float4 ParallelTransport(float4 v, float4 fromPos, float4 toPos)
 {
     float cosTheta = -ldot(fromPos, toPos);
@@ -25,8 +30,6 @@ float4 ParallelTransport(float4 v, float4 fromPos, float4 toPos)
 
 float4 DirectionTo(float4 fromPos, float4 toPos)
 {
-    float cosTheta = -ldot(fromPos, toPos);
-    float4 dir = toPos + cosTheta * fromPos;
-    float sinhDist = sqrt(cosTheta * cosTheta - 1);
-    return dir / sinhDist;
+    //project fromPos to the plane perpendicular to toPos
+    return toPos - dot(fromPos, toPos) * fromPos;
 }

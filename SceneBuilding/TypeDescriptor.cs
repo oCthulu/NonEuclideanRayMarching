@@ -42,9 +42,20 @@ public class Vector3Descriptor : ITypeDescriptor<Vector3>{
     }
 }
 
-public class Vector4Descriptor : ITypeDescriptor<Vector4>{
+public class Vector4Descriptor : ITypeDescriptor<Vector4>
+{
     public static string GetTypeName() => "float4";
-    public static string BuildSource(Vector4 value, SourceBuilder sb){
+    public static string BuildSource(Vector4 value, SourceBuilder sb)
+    {
         return $"float4({value.X:G}, {value.Y:G}, {value.Z:G}, {value.W:G})";
+    }
+}
+
+public class Vector2Descriptor : ITypeDescriptor<Vector2>
+{
+    public static string GetTypeName() => "float2";
+    public static string BuildSource(Vector2 value, SourceBuilder sb)
+    {
+        return $"float2({value.X:G}, {value.Y:G})";
     }
 }

@@ -19,11 +19,14 @@ class SphereH : ObjectBuilder {
     Expression<float> radius;
     Expression<Vector4> center;
     Expression<Vector4> albedo;
+    Expression<Vector2> sinhCoshRadius;
 
     public SphereH(Expression<float> radius, Expression<Vector4> center, Expression<Vector4> albedo){
         this.center = center;
         this.radius = radius;
         this.albedo = albedo;
+
+        sinhCoshRadius = radius.Apply(r => new Vector2(MathF.Sinh(-r), MathF.Cosh(-r)));
     }
 
     public override string BuildSdfSource(SourceBuilder sb)
@@ -31,30 +34,32 @@ class SphereH : ObjectBuilder {
         HyperBuilderUtils.IncludeHyperbolicUtils(sb);
 
         sb.scene.global.MarkAndAppend("SphereHSdf", """
-            float SphereHSdf(Pos p, float4 center, float radius)
+            float SphereHSdf(Pos p, float4 center, float2 sinhCoshRadius)
             {
                 float coshDist = (-ldot(p, center));
-                return acosh(coshDist) - radius;
+                float sinhDist = sqrt(coshDist * coshDist - 1.0);
+                //use sinh angle sum formula to subtract radius (hyperbolic sdfs return the sinh of the distance)
+                return coshDist * sinhCoshRadius.x + sinhDist * sinhCoshRadius.y;
             }
             """);
-        return $"SphereHSdf(p, {center.BuildSource(sb)}, {radius.BuildSource(sb)})";
+        return $"SphereHSdf(p, {center.BuildSource(sb)}, {sinhCoshRadius.BuildSource(sb)})";
     }
 
     public override string BuildHitSource(SourceBuilder sb)
     {
         sb.scene.global.MarkAndAppend("SphereHHit", """
-            HitResult SphereHHit(Pos p, float4 center, float radius, float4 albedo)
+            HitResult SphereHHit(Pos p, float4 center, float2 sinhCoshRadius, float4 albedo)
             {
                 HitResult result;
                 result.hit = true;
                 result.position = p;
-                result.dist = SphereHSdf(p, center, radius);
-                result.normal = normalize(p - center * cosh(result.dist));
+                result.dist = SphereHSdf(p, center, sinhCoshRadius);
+                result.normal = DirectionTo(center, p);
                 result.albedo = albedo;
                 return result;
             }
             """);
-        return $"SphereHHit(p, {center.BuildSource(sb)}, {radius.BuildSource(sb)}, {albedo.BuildSource(sb)})";
+        return $"SphereHHit(p, {center.BuildSource(sb)}, {sinhCoshRadius.BuildSource(sb)}, {albedo.BuildSource(sb)})";
     }
 
     // public override void BuildFunctions(SourceBuilder sb)
@@ -101,7 +106,7 @@ public class PlaneH : ObjectBuilder {
         sb.scene.global.MarkAndAppend("PlaneHSdf", """
             float PlaneHSdf(Pos p, float dist, float4 planeNormal)
             {
-                return asinh(ldot(planeNormal, p)) - dist;
+                return ldot(planeNormal, p);
             }
             """);
         return $"PlaneHSdf(p, {dist.BuildSource(sb)}, {planeNormal.BuildSource(sb)})";

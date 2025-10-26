@@ -324,6 +324,7 @@ public class SceneBuilder{
         //Register built-in type descriptions
         RegisterTypeDescription<float, FloatDescriptor>();
         RegisterTypeDescription<Matrix, MatrixDescriptor>();
+        RegisterTypeDescription<Vector2, Vector2Descriptor>();
         RegisterTypeDescription<Vector3, Vector3Descriptor>();
         RegisterTypeDescription<Vector4, Vector4Descriptor>();
     }
