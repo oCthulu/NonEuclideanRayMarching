@@ -369,11 +369,13 @@ public class Plane : ObjectBuilder{
 
 
 
-public class MixMatch : ObjectBuilder{
+public class MixMatch : ObjectBuilder
+{
     public ObjectBuilder sdfObj;
     public ObjectBuilder hitObj;
 
-    public MixMatch(ObjectBuilder sdfObj, ObjectBuilder hitObj){
+    public MixMatch(ObjectBuilder sdfObj, ObjectBuilder hitObj)
+    {
         this.sdfObj = sdfObj;
         this.hitObj = hitObj;
     }
@@ -386,5 +388,41 @@ public class MixMatch : ObjectBuilder{
     public override string BuildHitSource(SourceBuilder sb)
     {
         return hitObj.BuildHitSource(sb);
+    }
+}
+
+public class Cull : ObjectBuilder
+{
+    public ObjectBuilder culler;
+    public ObjectBuilder obj;
+    public Expression<float> threshold;
+
+    public Cull(ObjectBuilder culler, Expression<float> threshold, ObjectBuilder obj)
+    {
+        this.culler = culler;
+        this.threshold = threshold;
+        this.obj = obj;
+    }
+
+    public override string BuildSdfSource(SourceBuilder sb)
+    {
+        string sdfVarName = sb.NewVariableName();
+
+        sb.AppendLine($"float {sdfVarName} = {culler.BuildSdfSource(sb)};");
+        sb.AppendLine($"if({sdfVarName} < {threshold.BuildSource(sb)}) {{;");
+        sb.AppendLine($"    {sdfVarName} = {obj.BuildSdfSource(sb)};");
+        sb.AppendLine($"}}");
+        return sdfVarName;
+    }
+
+    public override string BuildHitSource(SourceBuilder sb)
+    {
+        string hitVarName = sb.NewVariableName();
+
+        sb.AppendLine($"HitResult {hitVarName} = {culler.BuildHitSource(sb)};");
+        sb.AppendLine($"if({hitVarName}.dist < {threshold.BuildSource(sb)}) {{;");
+        sb.AppendLine($"    {hitVarName} = {obj.BuildHitSource(sb)};");
+        sb.AppendLine($"}}");
+        return hitVarName;
     }
 }

@@ -64,7 +64,7 @@ public static class HyperUtil{
             float ang = 2 * MathF.PI / sides * i;
 
             prism.Add(new TransformH(
-                TranslationZ(-sideDist) * Matrix.RotationY(ang) * baseTransform,
+                TranslationZ(sideDist) * Matrix.RotationY(ang) * baseTransform,
                 new PlaneH(new Vector4(0, 0, 1, 0), 0, albedo)
             ));
         }
@@ -74,7 +74,7 @@ public static class HyperUtil{
                 baseTransform,
                 new Intersection(
                     new PlaneH(new Vector4(0, 1, 0, 0), 0, albedo),
-                    new PlaneH(new Vector4(0, -1, 0, 0), 0.1f, albedo)
+                    new PlaneH(new Vector4(0, -1, 0, 0), thickness, albedo)
                 )
             )
         );
@@ -109,7 +109,7 @@ public static class HyperUtil{
                     if(sides % 2 == 1){
                         ang += centralAngle / 2;
                     }
-                    var translation = TranslationZ(sideDist) * Matrix.RotationY(ang);
+                    var translation = TranslationZ(-sideDist) * Matrix.RotationY(ang);
                     var newTransform = parentTransform * translation;
 
                     var pos = Vector4.Transform(Origin, newTransform);
@@ -136,7 +136,7 @@ public static class HyperUtil{
         return group;
     }
 
-    public static ObjectBuilder Tiling(int sides, int shapesPerVertex, int depth, float thickness, float padding, Vector4 albedo, float epsilon = 0.01f){
+    public static ObjectBuilder Tiling(int sides, int shapesPerVertex, int depth, float thickness, float padding, Vector4 albedo, float cullPadding = 0.05f, float cullThreshold = 0.1f, float epsilon = 0.01f){
         float centralAngle = 2 * MathF.PI / sides;
         float interiorAngle = 2 * MathF.PI / shapesPerVertex;
 
@@ -146,12 +146,26 @@ public static class HyperUtil{
             MathF.PI / 2
         );
 
-        return Tiling(sides, shapesPerVertex, depth, (baseTransform) => NGonPrism(
-            sides,
-            sideDist - padding,
-            thickness,
-            albedo,
-            baseTransform
+        float vertDist = HyperUtil.HyperTriSideLength(
+                    MathF.PI / 2,
+                    MathF.PI / sides,
+                    interiorAngle / 2
+        );
+
+        return Tiling(sides, shapesPerVertex, depth, (baseTransform) => new Cull(
+            new SphereH(
+                vertDist + thickness / 2 + cullPadding,
+                Vector4.Transform(Origin, baseTransform),
+                albedo
+            ),
+            cullThreshold,
+            NGonPrism(
+                sides,
+                sideDist - padding,
+                thickness,
+                albedo,
+                baseTransform
+            )
         ), epsilon);
     }
 

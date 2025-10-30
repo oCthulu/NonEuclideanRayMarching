@@ -140,7 +140,7 @@ public class TransformH : TransformingObjectBuilder {
 
     protected override void TransformInput(string inputVar, SourceBuilder sb)
     {
-        sb.AppendLine($"{inputVar} = mul({transform.BuildSource(sb)}, {inputVar});");
+        sb.AppendLine($"{inputVar} = mul({inputVar}, {inverseTransform.BuildSource(sb)});");
     }
 
     protected override void TransformOutputSdf(string outputVar, SourceBuilder sb)
@@ -150,19 +150,21 @@ public class TransformH : TransformingObjectBuilder {
 
     protected override void TransformOutputHit(string outputVar, SourceBuilder sb)
     {
-        sb.AppendLine($"{outputVar}.position = mul({inverseTransform.BuildSource(sb)}, {outputVar}.position);");
-        sb.AppendLine($"{outputVar}.normal = normalize(mul({inverseTransform.BuildSource(sb)}, float4({outputVar}.normal)));");
+        sb.AppendLine($"{outputVar}.position = mul({outputVar}.position, {transform.BuildSource(sb)});");
+        sb.AppendLine($"{outputVar}.normal = mul({outputVar}.normal, {transform.BuildSource(sb)});");
     }
 }
 
 
 
-public class ConstantH : ObjectBuilder {
+public class ConstantH : ObjectBuilder
+{
     Expression<float> sdf;
     Expression<Vector4> albedo;
     Expression<Vector4> normal;
 
-    public ConstantH(Expression<float> sdf,  Expression<Vector4> albedo, Expression<Vector4> normal){
+    public ConstantH(Expression<float> sdf, Expression<Vector4> albedo, Expression<Vector4> normal)
+    {
         this.sdf = sdf;
         this.albedo = albedo;
         this.normal = normal;

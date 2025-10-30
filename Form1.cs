@@ -198,7 +198,7 @@ namespace GpuHlslRayMarchingTest
                     HyperUtil.NGonPrism(
                         sides,
                         sideDist,
-                        0.3f,
+                        1f,
                         new Vector4(1, 1, 1, 1),
                         Matrix.RotationY(MathF.PI / sides)
                     ),
